@@ -8,16 +8,18 @@ import { DocumentModule } from './document/document.module';
 import { DocumentEntity } from './document/entities/document.entity';
 import { StorageModule } from './storage/storage.module';
 import { AiModule } from './ai/ai.module';
+import { MemoryModule } from './memory/memory.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { User } from './conversations/entities/user.entity';
 import { Conversation } from './conversations/entities/conversation.entity';
 import { Message } from './conversations/entities/message.entity';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [AiModule, ConfigModule.forRoot({
+  imports: [ConfigModule.forRoot({
     isGlobal: true,
     envFilePath: '.env',
-  }), StorageModule,
+  }), MemoryModule, AiModule, StorageModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -40,7 +42,7 @@ import { Message } from './conversations/entities/message.entity';
           'mongodb://mongo_user:mongo_pass123@localhost:27017/knowledge_hub?authSource=admin',
         ),
       }),
-    }), DocumentModule, ConversationsModule],
+    }), DocumentModule, ConversationsModule, AuthModule],
   controllers: [AppController],
   providers: [AppService],
 })

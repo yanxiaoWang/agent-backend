@@ -1,34 +1,44 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
-import { CreateConversationDto } from './dto/create-conversation.dto';
-import { UpdateConversationDto } from './dto/update-conversation.dto';
+import { SemanticSearchDto } from './dto/semantic-search.dto';
 
 @Controller('conversations')
 export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
-  @Post()
-  create(@Body() createConversationDto: CreateConversationDto) {
-    return this.conversationsService.create(createConversationDto);
+  /** GET /conversations/users/:userId — 用户的会话列表 */
+  @Get('users/:userId')
+  findByUser(@Param('userId', ParseIntPipe) userId: number) {
+    return this.conversationsService.findConversationsByUserId(userId);
   }
 
-  @Get()
-  findAll() {
-    return this.conversationsService.findAll();
+  /** GET /conversations/:id/messages — 会话的消息列表 */
+  @Get(':id/messages')
+  findMessages(@Param('id', ParseIntPipe) id: number) {
+    return this.conversationsService.findMessagesByConversationId(id);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.conversationsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateConversationDto: UpdateConversationDto) {
-    return this.conversationsService.update(+id, updateConversationDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.conversationsService.remove(+id);
+  /** POST /conversations/:id/search — 会话内语义检索 */
+  @Post(':id/search')
+  search(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SemanticSearchDto,
+    @Query('limit', new DefaultValuePipe(5), ParseIntPipe) queryLimit?: number,
+  ) {
+    const limit = dto.limit ?? queryLimit ?? 5;
+    return this.conversationsService.searchSimilarMessages(
+      id,
+      dto.query,
+      limit,
+    );
   }
 }
