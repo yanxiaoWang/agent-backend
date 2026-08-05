@@ -28,7 +28,7 @@ import { Message } from './conversations/entities/message.entity';
         password: config.get<string>('POSTGRES_PASSWORD', '123456'),
         database: config.get<string>('POSTGRES_DB', 'agent_backend'),
         entities: [DocumentEntity, User, Conversation, Message],
-        migrations: [__dirname + '/migrations/**/*.ts'],
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
         synchronize: false, // 多人本地开发务必false！不要开true
       }),
     }),

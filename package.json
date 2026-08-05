@@ -20,7 +20,12 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "nest:mod": "nest g module",
     "nest:res": "nest g resource --no-spec",
-    "make:module": "sh -c 'nest g module $1 && nest g controller $1 --no-spec && nest g service $1 --no-spec'"
+    "make:module": "sh -c 'nest g module $1 && nest g controller $1 --no-spec && nest g service $1 --no-spec'",
+    "typeorm": "TS_NODE_PROJECT=tsconfig.typeorm.json typeorm-ts-node-commonjs",
+    "migration:generate": "npm run typeorm -- migration:generate -d src/data-source.ts",
+    "migration:run": "npm run typeorm -- migration:run -d src/data-source.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d src/data-source.ts",
+    "migration:show": "npm run typeorm -- migration:show -d src/data-source.ts"
   },
   "dependencies": {
     "@ai-sdk/langchain": "^3.0.48",
@@ -38,7 +43,9 @@
     "ai": "^7.0.48",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
+    "ioredis": "^6.0.0",
     "jszip": "^3.10.1",
     "langchain": "^1.5.4",
     "mammoth": "^1.12.0",
