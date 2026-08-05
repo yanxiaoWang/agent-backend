@@ -1,0 +1,12 @@
+db = db.getSiblingDB("agent_backend");
+
+db.createUser({
+  user: "agent_backend_user",
+  pwd: "agent_backend_password",
+  roles: [{ role: "readWrite", db: "agent_backend" }],
+});
+
+// 文档正文：_id(ObjectId) ↔ kh_document.content_id，documentId ↔ kh_document.id
+db.createCollection("document_content");
+db.document_content.createIndex({ documentId: 1 }, { unique: true });
+db.document_content.createIndex({ deleted: 1 });
