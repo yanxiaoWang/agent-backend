@@ -6,6 +6,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DocumentModule } from './document/document.module';
 import { DocumentEntity } from './document/entities/document.entity';
+import { DocumentTaskEntity } from './document/entities/document-task.entity';
+import { DocumentChunkEntity } from './document/entities/document-chunk.entity';
 import { StorageModule } from './storage/storage.module';
 import { AiModule } from './ai/ai.module';
 import { MemoryModule } from './memory/memory.module';
@@ -29,7 +31,14 @@ import { AuthModule } from './auth/auth.module';
         username: config.get<string>('POSTGRES_USER', 'user'),
         password: config.get<string>('POSTGRES_PASSWORD', '123456'),
         database: config.get<string>('POSTGRES_DB', 'agent_backend'),
-        entities: [DocumentEntity, User, Conversation, Message],
+        entities: [
+          DocumentEntity,
+          DocumentTaskEntity,
+          DocumentChunkEntity,
+          User,
+          Conversation,
+          Message,
+        ],
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
         synchronize: false, // 多人本地开发务必false！不要开true
       }),

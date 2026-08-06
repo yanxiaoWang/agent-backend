@@ -43,6 +43,6 @@ import { MEM0_CLIENT, Mem0MemoryStore } from './mem0-memory.store';
     RedisMessageStore,
     Mem0MemoryStore,
   ],
-  exports: [RedisMessageStore, Mem0MemoryStore],
+  exports: [REDIS_CLIENT, RedisMessageStore, Mem0MemoryStore],
 })
 export class MemoryModule {}

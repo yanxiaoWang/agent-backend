@@ -67,6 +67,18 @@ export class DocumentEntity {
   @Column({ name: 'cover_image', type: 'varchar', nullable: true })
   coverImage?: string | null;
 
+  /** 原始文件 RustFS URL */
+  @Column({ name: 'file_url', type: 'varchar', nullable: true })
+  fileUrl?: string | null;
+
+  /** 原始文件大小（字节） */
+  @Column({ name: 'file_size', type: 'int', default: 0 })
+  fileSize: number;
+
+  /** 原始文件扩展名 */
+  @Column({ name: 'file_ext', type: 'varchar', nullable: true })
+  fileExt?: string | null;
+
   /** 标签（逗号分隔） */
   @Column({ type: 'varchar', nullable: true })
   tags?: string | null;

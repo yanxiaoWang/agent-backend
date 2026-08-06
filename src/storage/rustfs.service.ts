@@ -1,5 +1,6 @@
 import {
   CreateBucketCommand,
+  GetObjectCommand,
   HeadBucketCommand,
   PutObjectCommand,
   S3Client,
@@ -13,12 +14,19 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
+import { Readable } from 'stream';
 
 export interface UploadBytesOptions {
   fileName: string;
   contentType: string;
   /** 对象 key 前缀，默认 documents */
   prefix?: string;
+}
+
+export interface UploadResult {
+  url: string;
+  key: string;
+  bucket: string;
 }
 
 /** RustFS 文件存储（S3 兼容） */
@@ -87,6 +95,15 @@ export class RustfsService implements OnModuleInit {
     bytes: Buffer | Uint8Array,
     options: UploadBytesOptions,
   ): Promise<string> {
+    const result = await this.upload(bytes, options);
+    return result.url;
+  }
+
+  /** 上传字节，返回 url + object key */
+  async upload(
+    bytes: Buffer | Uint8Array,
+    options: UploadBytesOptions,
+  ): Promise<UploadResult> {
     if (!this.isEnabled() || !this.client) {
       throw new ServiceUnavailableException(
         'RustFS 未启用或未配置，无法上传文件',
@@ -115,7 +132,29 @@ export class RustfsService implements OnModuleInit {
     this.logger.log(
       `RustFS 上传成功: key=${key}, size=${body.length}, url=${url}`,
     );
-    return url;
+    return { url, key, bucket: this.bucket };
+  }
+
+  /** 按 object key 下载文件字节 */
+  async downloadByKey(key: string): Promise<Buffer> {
+    if (!this.isEnabled() || !this.client) {
+      throw new ServiceUnavailableException(
+        'RustFS 未启用或未配置，无法下载文件',
+      );
+    }
+
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
+
+    if (!response.Body) {
+      throw new ServiceUnavailableException(`RustFS 对象为空: key=${key}`);
+    }
+
+    return streamToBuffer(response.Body as Readable);
   }
 
   private async ensureBucket(): Promise<void> {
@@ -169,4 +208,12 @@ function guessExt(contentType: string): string {
     default:
       return '';
   }
+}
+
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
 }

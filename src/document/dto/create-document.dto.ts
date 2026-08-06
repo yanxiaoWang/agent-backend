@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsOptional, IsString,  } from "class-validator"
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { DocumentStatus } from '../entities/document.entity';
 
 export class CreateDocumentDto {
@@ -34,6 +34,21 @@ export class CreateDocumentDto {
   @IsOptional()
   @IsString()
   coverImage?: string;
+
+  /** 原始文件 RustFS URL */
+  @IsOptional()
+  @IsString()
+  fileUrl?: string;
+
+  /** 原始文件大小（字节） */
+  @IsOptional()
+  @IsInt()
+  fileSize?: number;
+
+  /** 原始文件扩展名 */
+  @IsOptional()
+  @IsString()
+  fileExt?: string;
 
   /** 标签（逗号分隔） */
   @IsOptional()
