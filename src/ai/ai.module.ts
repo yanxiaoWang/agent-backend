@@ -5,8 +5,11 @@ import { ConfigService } from '@nestjs/config';
 import { ChatOpenAI } from '@langchain/openai';
 import { tool } from '@langchain/core/tools';
 import z from 'zod';
+import { ConversationsModule } from '../conversations/conversations.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
+  imports: [ConversationsModule, AuthModule],
   controllers: [AiController],
   providers: [
     AiService,

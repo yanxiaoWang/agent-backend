@@ -13,6 +13,7 @@ import {
   Mem0MemoryStore,
   messagesForRedis,
 } from '../memory/mem0-memory.store';
+import { ConversationsService } from '../conversations/conversations.service';
 
 const SUMMARY_PROMPT = `你是对话摘要助手。用中文简洁总结：话题、会话内进度/报错/待办。
 用户级长期偏好由外部记忆维护，摘要勿重复堆砌。不要编造。
@@ -28,6 +29,7 @@ export class AiService {
   private readonly agent: ReturnType<typeof createAgent>;
 
   constructor(
+    private readonly conversationsService: ConversationsService,
     @Inject('CHAT_MODEL') private readonly model: ChatOpenAI,
     @Inject('WEB_SEARCH_TOOL') private readonly webSearchTool: any,
     private readonly memoryStore: RedisMessageStore,
@@ -50,16 +52,37 @@ export class AiService {
   }
 
   /**
-   * Redis 短期 + Mem0 长期：
-   * - invoke 前：Redis 历史 + Mem0 search → SystemMessage 注入
-   * - 流结束后：过滤 SystemMessage 写回 Redis；分类后可选写入 Mem0
+   * Postgres 持久化 + Redis 短期 + Mem0 长期：
+   * - invoke 前：Redis（miss 则 PG 回填）+ Mem0 search → SystemMessage 注入
+   * - 流结束后：本轮 user/assistant 写入 PG；过滤 SystemMessage 写回 Redis；可选 Mem0
    */
-  async stream(sessionId: string, messages: UIMessage[], userId?: string) {
-    const memUserId = userId?.trim() || sessionId;
-    const history = await this.memoryStore.loadMessages(sessionId);
+  async stream(
+    conversationId: number,
+    messages: UIMessage[],
+    userId: number,
+    memUserId: string,
+  ) {
+    const sessionId = String(conversationId);
+    await this.conversationsService.ensureOwned(conversationId, userId);
+
     const incoming = await toBaseMessages(messages);
     const lastHuman = this.findLastHuman(incoming);
     const userText = this.messageText(lastHuman);
+
+    let history = await this.memoryStore.loadMessages(sessionId);
+    if (!history.length) {
+      history =
+        await this.conversationsService.loadRecentBaseMessages(conversationId);
+      if (history.length) {
+        await this.memoryStore.saveMessages(
+          sessionId,
+          messagesForRedis(history),
+        );
+        this.logger.debug(
+          `session=${sessionId} Redis miss → backfilled ${history.length} from PG`,
+        );
+      }
+    }
 
     let memoryMsg = null as ReturnType<Mem0MemoryStore['buildSystemMessage']>;
     if (this.mem0Store.enabled && userText) {
@@ -84,7 +107,7 @@ export class AiService {
     ];
 
     this.logger.debug(
-      `session=${sessionId} user=${memUserId} load ${history.length} history → input ${inputMessages.length}`,
+      `session=${sessionId} user=${userId} load ${history.length} history → input ${inputMessages.length}`,
     );
 
     const lgStream = await this.agent.stream(
@@ -112,11 +135,39 @@ export class AiService {
               ` (TTL ${ttl}s)`,
           );
 
+          const assistantText = this.messageText(
+            resultMessages.at(-1) as BaseMessage | undefined,
+          );
+
+          if (userText && assistantText) {
+            try {
+              const { userMessage, assistantMessage } =
+                await this.conversationsService.appendTurn(
+                  conversationId,
+                  userId,
+                  userText,
+                  assistantText,
+                );
+              this.logger.debug(
+                `session=${sessionId} persisted turn msg#${userMessage.id}+#${assistantMessage.id}`,
+              );
+
+              void this.conversationsService
+                .embedMessageIds([userMessage.id, assistantMessage.id])
+                .catch((err) =>
+                  this.logger.warn(
+                    `embed failed: ${(err as Error).message}`,
+                  ),
+                );
+            } catch (err) {
+              this.logger.error(
+                `PG persist failed: ${(err as Error).message}`,
+              );
+            }
+          }
+
           if (!this.mem0Store.enabled || !userText) return;
 
-          const assistantText = String(
-            resultMessages.at(-1)?.content ?? '',
-          );
           try {
             const { written, reason } = await this.mem0Store.classifyAndPersist(
               userText,
